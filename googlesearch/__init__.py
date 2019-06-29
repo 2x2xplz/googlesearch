@@ -189,6 +189,62 @@ def filter_result(link):
     return None
 
 
+# Returns a BeautifulSoup object.
+def get_search_soup(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
+           stop=None, domains=None, pause=2.0, only_standard=False,
+           extra_params={}, tpe='', user_agent=None):
+
+    # Prepare domain list if it exists.
+    if domains:
+        query = query + ' ' + ' OR '.join(
+                                'site:' + domain for domain in domains)
+
+    # Prepare the search string.
+    query = quote_plus(query)
+
+    # Check extra_params for overlapping
+    for builtin_param in ('hl', 'q', 'btnG', 'tbs', 'safe', 'tbm'):
+        if builtin_param in extra_params.keys():
+            raise ValueError(
+                'GET parameter "%s" is overlapping with \
+                the built-in GET parameter',
+                builtin_param
+            )
+
+    # Grab the cookie from the home page.
+    get_page(url_home % vars(), user_agent)
+
+    # Prepare the URL of the first request.
+    if start:
+        if num == 10:
+            url = url_next_page % vars()
+        else:
+            url = url_next_page_num % vars()
+    else:
+        if num == 10:
+            url = url_search % vars()
+        else:
+            url = url_search_num % vars()
+
+    try:  # Is it python<3?
+        iter_extra_params = extra_params.iteritems()
+    except AttributeError:  # Or python>3?
+        iter_extra_params = extra_params.items()
+    # Append extra GET_parameters to URL
+    for k, v in iter_extra_params:
+        url += url + ('&%s=%s' % (k, v))
+
+    # Request the Google Search results page.
+    html = get_page(url, user_agent)
+
+    # Parse the response and process every anchored URL.
+    if is_bs4:
+        soup = BeautifulSoup(html, 'html.parser')
+    else:
+        soup = BeautifulSoup(html)
+    return soup
+
+
 # Returns a generator that yields URLs.
 def search(query, tld='com', lang='en', tbs='0', safe='off', num=10, start=0,
            stop=None, domains=None, pause=2.0, only_standard=False,
